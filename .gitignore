@@ -1,0 +1,9 @@
+# ignore video files
+**.mp4
+**.mkv
+**.avi
+**.flv
+
+# ignore image files
+**.png
+**.jpg
