@@ -12,10 +12,14 @@ import numpy as np
 from threading import Thread
 from queue import Queue
 from main import get_dict
+import pandas as pd
+import datetime
+
 
 ap = argparse.ArgumentParser()
 ap.add_argument("-p", "--shape-predictor", required=True, help="path to facial landmark predictor")
 ap.add_argument("-v", "--video", required=True)
+ap.add_argument("-c", "--csv", required=True)
 args = vars(ap.parse_args())
 
 detector = dlib.get_frontal_face_detector()
@@ -23,8 +27,15 @@ predictor = dlib.shape_predictor(args["shape_predictor"])
 
 fvs = FileVideoStream(args["video"]).start()
 time.sleep(1.0)
+frame_count = 0
+df_pos = 0
 
 
+def getTimeFromStr(timeStr):
+    try:
+        return datetime.datetime.strptime(timeStr, "%H:%M:%S.%f").time()
+    except:
+        return datetime.datetime.strptime(timeStr, "%H:%M:%S").time()
 
 def rmsdiff(im1, im2):
     img = im1-im2
@@ -36,13 +47,39 @@ def rmsdiff(im1, im2):
     rms = math.sqrt(sum_of_squares/float(im1.shape[0] * im1.shape[1]))
     return rms
 
+csv_df = pd.read_csv(args["csv"], encoding='utf-8')
+csv_df = csv_df.drop_duplicates(subset=['1'])
+df_length = len(csv_df)
+stimes = list(map(lambda x: getTimeFromStr(x), csv_df['1'].as_matrix()))
+etimes = list(map(lambda x: getTimeFromStr(x), csv_df['2'].as_matrix()))
+names = csv_df['3'].as_matrix()
+#print(csv_df)
+
 prev_diff_array = None
 flag =0 
 fp = open('temp.txt','a')
 
 final_dict = get_dict()
+
+print("Total frame count:", fvs.stream.get(cv2.CAP_PROP_FRAME_COUNT))
+fps = round(fvs.stream.get(cv2.CAP_PROP_FPS))
+print("FPS:", fps)
+
+def getSpeakerName(time):
+    timeObj1 = time
+    timeObj2 = time
+    for iter in range(len(stimes)):
+        if stimes[iter] < time.time() and etimes[iter] > time.time():
+            return names[iter]
+    return "speaker_unknown!"
+
 while fvs.more():
     frame = fvs.read()
+    #print("Frame time:", fvs.stream.get(cv2.CAP_PROP_POS_MSEC))
+    #curr_time = time.strftime("%H:%M:%S", time.gmtime(frame_count/fps))
+    curr_time = datetime.datetime.utcfromtimestamp(frame_count/fps)
+    print(curr_time)
+    #print("Frame number:", frame_count, "\nTime:", curr_time)
     frame = imutils.resize(frame, width=500)
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     #frame = np.dstack([frame, frame, frame])
@@ -93,7 +130,9 @@ while fvs.more():
                 if thres>=50:
                     cv2.putText(frame, "Non-Speaking", (x - 10, y - 10), cv2.FONT_HERSHEY_COMPLEX, 0.5, (0, 255, 0), 2)
                 else:
-                    cv2.putText(frame, "Speaking", (x - 10, y - 10), cv2.FONT_HERSHEY_COMPLEX, 0.5, (0, 255, 0), 2)
+                    speakerName = getSpeakerName(curr_time)
+                    #df_pos += ifNext
+                    cv2.putText(frame, speakerName, (x - 10, y - 10), cv2.FONT_HERSHEY_COMPLEX, 0.5, (0, 255, 0), 2)
 
 
 
@@ -101,6 +140,7 @@ while fvs.more():
         prev_data = curr_data
         prev_diff_array = diff_array
     #output = face_utils.visualize_facial_landmarks(frame, shape)
+    frame_count += 1
     cv2.imshow("Frame ", frame)
     cv2.waitKey(1)
 
