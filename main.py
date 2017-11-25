@@ -49,7 +49,7 @@ def process_subtitles():
 
 def process_script():
     doc = 'The One With Joey’s Porsche.html'
-    html_doc = open(doc, 'r')
+    html_doc = open(doc, 'rb')
     soup = BeautifulSoup(html_doc, 'html.parser')
     script = []
 
@@ -151,7 +151,7 @@ def merge(subtitles, script, subs_words, script_words):
     return final
 
 
-def main():
+def get_dict():
     subtitles = process_subtitles()
     print('Subtitle Loaded.')
     script = process_script()
@@ -159,9 +159,4 @@ def main():
     subs_words = tokenize(subtitles, 1)
     script_words = tokenize(script, 2)
     final = merge(subtitles, script, subs_words, script_words)
-    for i in range(len(final)):
-        print(final[i][0] + ', ' + str(final[i][1]) + ', ' + str(final[i][2]) + ', ' + final[i][3])
-
-
-if __name__ == '__main__':
-    main()
+    return final 
